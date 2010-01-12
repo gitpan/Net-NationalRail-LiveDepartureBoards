@@ -16,11 +16,11 @@ Net::NationalRail::LiveDepartureBoards - Live Departure Boards information
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 
 =head1 SYNOPSIS
@@ -32,6 +32,13 @@ SOAP API, as documented at http://www.livedepartureboards.co.uk/ldbws/.
 
     my $ldb = Net::NationalRail::LiveDepartureBoards->new();
     my $hashref = $ldb->departures(rows => 10, crs => 'RUG');
+
+    # Or filter by trains going to another place
+    my $hashref = $ldb->departures(rows => 10, crs => 'RUG', filtercrs => 'SOU');
+
+    # Or get trains arriving from another place
+    my $hashref = $ldb->departures(rows => 10, crs => 'SOU',
+        filtercrs => 'RUG', filtertype => 'from');
 
 =head1 METHODS
 
@@ -75,18 +82,26 @@ sub _station_board_request {
     my $self = shift;
     my %arg = @_;
 
+    my @opt_args;
+    if (exists($arg{filtercrs})) {
+        push @opt_args, SOAP::Data->name(filterCrs => $arg{filtercrs});
+
+	my $type = (exists $arg{filtertype} ? $arg{filtertype} : 'to');
+	push @opt_args, SOAP::Data->name(filterType => $type);
+    }
+
     my $result = _soap_request(
-        $method,
-        URI_PREFIX . 'types',
-        SOAP::Data->name(numRows => $arg{'rows'}),
-        SOAP::Data->name(crs => $arg{'crs'}),
-        # TODO: add filters.
+         $method,
+         URI_PREFIX . 'types',
+         SOAP::Data->name(numRows => $arg{'rows'}),
+         SOAP::Data->name(crs => $arg{'crs'}),
+         @opt_args
     );
 
     if ($result->fault) {
-        die join ', ', $result->faultcode, $result->faultstring;
+         die join ', ', $result->faultcode, $result->faultstring;
     } else {
-        return $result->result();
+         return $result->result();
     }
 }
 
@@ -108,7 +123,7 @@ Tim Retout, C<< <diocles at cpan.org> >>
 
 =head1 BUGS
 
-This is version 0.01. The API is probably not stable yet. There are
+This is version 0.02. The API is probably not stable yet. There are
 probably bugs. The module could break at any time at the whim of ATOC.
 
 
@@ -148,7 +163,7 @@ L<http://search.cpan.org/dist/Net-NationalRail-LiveDepartureBoards>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright (C) 2009 Tim Retout, all rights reserved.
+Copyright (C) 2009, 2010 Tim Retout, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
